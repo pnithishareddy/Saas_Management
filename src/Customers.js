@@ -1,0 +1,16 @@
+import {useState} from 'react';
+import {TODAY, fd, h} from './data';
+import {Badge, Bar, Confirm, Form, Modal, Table} from './components';
+/* Page: Customers */
+export function Customers({cus,setCus,plans,users,toast}){
+ const [q,setQ]=useState(''),[st,setSt]=useState('all'),[pl,setPl]=useState('all'),[mod,setMod]=useState(null),[del,setDel]=useState(null),[sel,setSel]=useState(null);
+ const pn=id=>(plans.find(p=>p.id===id)||{name:'—'}).name;
+ const rows=cus.filter(c=>(st==='all'||c.status===st)&&(pl==='all'||c.planId===pl)&&(c.company+c.contact+c.email).toLowerCase().includes(q.toLowerCase()));
+ const F=[{k:'company',label:'Company',check:v=>!v.trim()&&'Company is required'},{k:'contact',label:'Contact name',check:v=>!v.trim()&&'Contact is required'},{k:'email',label:'Email',check:v=>!/^\S+@\S+\.\S+$/.test(v)&&'Enter a valid email'},{k:'planId',label:'Plan',opts:plans.filter(p=>p.status==='active').map(p=>[p.id,p.name])},{k:'status',label:'Status',opts:['active','trialing','past_due','paused','canceled'].map(s=>[s,s])}];
+ const save=v=>{if(mod==='new'){setCus([{...v,id:'c'+Date.now(),joined:TODAY,usage:0,seatsUsed:0},...cus]);toast('Customer added')}else{setCus(cus.map(c=>c.id===v.id?{...c,...v}:c));toast('Customer updated')}setMod(null)};
+ const c=sel&&cus.find(x=>x.id===sel);
+ return h`<div class="card"><${Bar} q=${q} setQ=${setQ} filters=${[{label:'Status',v:st,set:setSt,opts:['active','trialing','past_due','paused','canceled'].map(s=>[s,s])},{label:'Plan',v:pl,set:setPl,opts:plans.map(p=>[p.id,p.name])}]}><button class="btn p" onClick=${()=>setMod('new')}>+ Add customer</button><//>
+ <${Table} rows=${rows} onRow=${r=>setSel(r.id)} cols=${[{k:'company',label:'Company'},{k:'contact',label:'Contact'},{k:'planId',label:'Plan',render:r=>pn(r.planId),val:r=>pn(r.planId)},{k:'status',label:'Status',render:r=>h`<${Badge} s=${r.status}/>`},{k:'joined',label:'Joined',render:r=>fd(r.joined)},{k:'x',label:'',render:r=>h`<span class="row"><button class="btn s" onClick=${e=>{e.stopPropagation();setMod(r)}}>Edit</button><button class="btn s" onClick=${e=>{e.stopPropagation();setDel(r)}}>Delete</button></span>`,val:()=>0}]}/>
+ ${mod&&h`<${Modal} title=${mod==='new'?'Add customer':'Edit customer'} onClose=${()=>setMod(null)}><${Form} fields=${F} init=${mod==='new'?{company:'',contact:'',email:'',planId:plans[0].id,status:'trialing'}:mod} onSave=${save} onCancel=${()=>setMod(null)}/><//>`}
+ ${del&&h`<${Confirm} title="Delete customer?" text=${'This removes '+del.company+' and its subscription. This cannot be undone.'} onNo=${()=>setDel(null)} onYes=${()=>{setCus(cus.filter(x=>x.id!==del.id));setDel(null);toast('Customer deleted')}}/>`}
+ ${c&&h`<${Modal} drawer title=${c.company} onClose=${()=>setSel(null)}><p><${Badge} s=${c.status}/> ${pn(c.planId)} plan</p><p style=${{color:'var(--mut)'}}>${c.contact} · ${c.email}<br/>Customer since ${fd(c.joined)}</p><h3>Plan usage</h3><div class="bar"><i style=${{width:Math.min(100,c.usage*100)+'%',background:c.usage>1?'var(--bad)':''}}></i></div><small>${(c.usage*100).toFixed(0)}% of API limit</small><h3 style=${{marginTop:18}}>Users (${users.filter(u=>u.customerId===c.id).length})</h3>${users.filter(u=>u.customerId===c.id).map(u=>h`<div key=${u.id}>${u.name} <small style=${{color:'var(--mut)'}}>${u.role}</small></div>`)}<//>`}</div>`}

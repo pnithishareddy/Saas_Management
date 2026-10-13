@@ -1,0 +1,16 @@
+import {useState} from 'react';
+import {h, money, num, planMrr} from './data';
+import {Badge, Confirm, Form, Modal} from './components';
+/* Page: Plans */
+export function Plans({plans,setPlans,cus,toast}){
+ const [mod,setMod]=useState(null),[del,setDel]=useState(null),[det,setDet]=useState(null);
+ const subs=id=>cus.filter(c=>c.planId===id&&c.status!=='canceled').length;
+ const pos=v=>!(Number.isInteger(+v)&&+v>0)&&'Enter a whole number above 0';
+ const F=[{k:'name',label:'Plan name',check:(v,a)=>!v.trim()?'Name is required':plans.some(p=>p.name.toLowerCase()===v.trim().toLowerCase()&&p.id!==a.id)&&'A plan with this name exists'},{k:'price',label:'Price (INR)',type:'number',check:v=>(v===''||isNaN(v)||+v<0)&&'Enter a price of 0 or more'},{k:'interval',label:'Billing interval',opts:[['monthly','Monthly'],['yearly','Yearly']]},{k:'seats',label:'Seat limit',type:'number',check:pos},{k:'api',label:'API calls / month',type:'number',check:pos},{k:'features',label:'Features (comma separated)',check:v=>!v.trim()&&'Add at least one feature'},{k:'status',label:'Status',opts:[['active','Active'],['archived','Archived']]}];
+ const save=v=>{const p={...v,name:v.name.trim(),price:+v.price,seats:+v.seats,api:+v.api};if(mod==='new'){setPlans([...plans,{...p,id:'p'+Date.now()}]);toast('Plan created')}else{setPlans(plans.map(x=>x.id===p.id?p:x));toast('Plan updated')}setMod(null)};
+ const tryDel=p=>subs(p.id)?toast('Cannot delete "'+p.name+'": '+subs(p.id)+' active subscribers. Archive it instead.','error'):setDel(p);
+ return h`<div><div class="row" style=${{marginBottom:12}}><button class="btn p" onClick=${()=>setMod('new')}>+ New plan</button></div>
+ <div class="grid g4">${plans.map(p=>h`<div class="card plan" key=${p.id}><div class="row" style=${{justifyContent:'space-between'}}><h4>${p.name}</h4><${Badge} s=${p.status}/></div><div class="pr">${money(p.price)}<small style=${{fontSize:12,color:'var(--mut)'}}>/${p.interval==='yearly'?'yr':'mo'}</small></div><ul>${p.features.split(',').slice(0,3).map(f=>h`<li key=${f}>${f.trim()}</li>`)}</ul><small>${subs(p.id)} subscribers</small><div class="row" style=${{marginTop:10}}><button class="btn s" onClick=${()=>setDet(p)}>Details</button><button class="btn s" onClick=${()=>setMod(p)}>Edit</button><button class="btn s" onClick=${()=>tryDel(p)}>Delete</button></div></div>`)}</div>
+ ${mod&&h`<${Modal} drawer title=${mod==='new'?'New plan':'Edit '+mod.name} onClose=${()=>setMod(null)}><${Form} fields=${F} init=${mod==='new'?{name:'',price:'',interval:'monthly',seats:'',api:'',features:'',status:'active'}:mod} onSave=${save} onCancel=${()=>setMod(null)}/><//>`}
+ ${del&&h`<${Confirm} title="Delete plan?" text=${'Permanently delete the '+del.name+' plan?'} onNo=${()=>setDel(null)} onYes=${()=>{setPlans(plans.filter(x=>x.id!==del.id));setDel(null);toast('Plan deleted')}}/>`}
+ ${det&&h`<${Modal} title=${det.name+' plan'} onClose=${()=>setDet(null)}><p><${Badge} s=${det.status}/> ${money(det.price)} billed ${det.interval}</p><p>Seats: <b>${num(det.seats)}</b><br/>API calls: <b>${num(det.api)}</b>/month<br/>Subscribers: <b>${subs(det.id)}</b><br/>MRR contribution: <b>${money(subs(det.id)*planMrr(det))}</b></p><ul>${det.features.split(',').map(f=>h`<li key=${f}>${f.trim()}</li>`)}</ul><//>`}</div>`}

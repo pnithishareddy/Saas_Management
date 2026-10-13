@@ -1,0 +1,13 @@
+import {useState} from 'react';
+import {DAY, TODAY, fd, h, money, planMrr} from './data';
+import {Badge, Bar, Confirm, Form, Modal, Table} from './components';
+/* Page: Subscriptions */
+export function Subs({cus,setCus,plans,toast}){
+ const [q,setQ]=useState(''),[st,setSt]=useState('all'),[pl,setPl]=useState('all'),[mod,setMod]=useState(null),[cc,setCc]=useState(null);
+ const pf=id=>plans.find(p=>p.id===id)||{name:'—',price:0,interval:'monthly'};
+ const rows=cus.filter(c=>(st==='all'||c.status===st)&&(pl==='all'||c.planId===pl)&&c.company.toLowerCase().includes(q.toLowerCase()));
+ const set=(id,patch,msg)=>{setCus(cus.map(c=>c.id===id?{...c,...patch}:c));toast(msg)};
+ return h`<div class="card"><${Bar} q=${q} setQ=${setQ} filters=${[{label:'Status',v:st,set:setSt,opts:['active','trialing','past_due','paused','canceled'].map(s=>[s,s])},{label:'Plan',v:pl,set:setPl,opts:plans.map(p=>[p.id,p.name])}]}/>
+ <${Table} rows=${rows} cols=${[{k:'company',label:'Customer'},{k:'planId',label:'Plan',render:r=>pf(r.planId).name,val:r=>pf(r.planId).name},{k:'mrr',label:'MRR',render:r=>r.status==='canceled'?'₹0':money(planMrr(pf(r.planId))),val:r=>r.status==='canceled'?0:planMrr(pf(r.planId))},{k:'status',label:'Status',render:r=>h`<${Badge} s=${r.status}/>`},{k:'renews',label:'Renews',val:r=>r.joined%(30*DAY),render:r=>r.status==='canceled'?'—':fd(TODAY+(r.joined%(30*DAY))/DAY*DAY%(30*DAY))},{k:'x',label:'Actions',val:()=>0,render:r=>h`<span class="row"><button class="btn s" disabled=${r.status==='canceled'} onClick=${()=>setMod(r)}>Change plan</button>${r.status==='paused'?h`<button class="btn s" onClick=${()=>set(r.id,{status:'active'},'Subscription resumed')}>Resume</button>`:h`<button class="btn s" disabled=${r.status==='canceled'} onClick=${()=>set(r.id,{status:'paused'},'Subscription paused')}>Pause</button>`}${r.status==='canceled'?h`<button class="btn s" onClick=${()=>set(r.id,{status:'active'},'Subscription reactivated')}>Reactivate</button>`:h`<button class="btn s" onClick=${()=>setCc(r)}>Cancel</button>`}</span>`}]}/>
+ ${mod&&h`<${Modal} title=${'Change plan — '+mod.company} onClose=${()=>setMod(null)}><${Form} fields=${[{k:'planId',label:'New plan',opts:plans.filter(p=>p.status==='active').map(p=>[p.id,p.name+' ('+money(p.price)+'/'+(p.interval==='yearly'?'yr':'mo')+')'])}]} init=${{planId:mod.planId}} onCancel=${()=>setMod(null)} submit="Update plan" onSave=${v=>{set(mod.id,{planId:v.planId},'Plan changed');setMod(null)}}/><//>`}
+ ${cc&&h`<${Confirm} label="Cancel subscription" title="Cancel subscription?" text=${cc.company+' will lose access to paid features at the end of this cycle.'} onNo=${()=>setCc(null)} onYes=${()=>{set(cc.id,{status:'canceled'},'Subscription canceled');setCc(null)}}/>`}</div>`}
